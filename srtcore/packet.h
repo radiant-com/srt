@@ -113,7 +113,7 @@ public:
     inline void setLength(size_t length)
     {
 #ifdef _WIN32
-        len = length;
+        len = (ULONG) length;
 #else
         iov_len = length;
 #endif
@@ -214,9 +214,9 @@ inline EncryptionKeySpec GetEncryptionKeySpec(int32_t msgno)
 
 const int32_t PUMASK_SEQNO_PROBE = 0xF;
 
-std::string PacketMessageFlagStr(uint32_t msgno_field);
 
-class CChannel;
+namespace srt {
+std::string PacketMessageFlagStr(uint32_t msgno_field);
 
 class CPacket
 {
@@ -247,7 +247,7 @@ public:
       /// @param rparam [in] pointer to the second data structure, explained by the packet type.
       /// @param size [in] size of rparam, in number of bytes;
 
-   void pack(UDTMessageType pkttype, const int32_t* lparam = NULL, void* rparam = NULL, int size = 0);
+   void pack(UDTMessageType pkttype, const int32_t* lparam = NULL, void* rparam = NULL, size_t size = 0);
 
       /// Read the packet vector.
       /// @return Pointer to the packet vector.
@@ -284,7 +284,7 @@ public:
 
    void setControl(UDTMessageType type)
    {
-       m_nHeader[SRT_PH_SEQNO] = SEQNO_CONTROL::mask | SEQNO_MSGTYPE::wrap(type);
+       m_nHeader[srt::SRT_PH_SEQNO] = SEQNO_CONTROL::mask | SEQNO_MSGTYPE::wrap(type);
    }
 
       /// Read the extended packet type.
@@ -429,5 +429,7 @@ public:
    std::string Info() { return std::string(); }
 #endif
 };
+
+} // namespace srt
 
 #endif

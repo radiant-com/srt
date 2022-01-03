@@ -81,7 +81,6 @@
 #include <logging.h>
 
 using namespace std;
-using namespace sio;
 
 
 
@@ -140,16 +139,10 @@ struct LiveTransmitConfig
     bool srctime = false;
     size_t buffering = 10;
     int stats_report = 0;
-    string stats_in;
     string stats_out;
-    string csv_in;
-    string csv_out;
     SrtStatsPrintFormat stats_pf = SRTSTATS_PROFMAT_2COLS;
     bool auto_reconnect = true;
     bool full_stats = false;
-
-    string sio_ws;
-    string sio_room;
 
     string source;
     string target;
@@ -183,18 +176,13 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
         o_srctime       = {"st", "srctime", "sourcetime"},
         o_buffering     = {"buffering"},
         o_statsrep      = { "s", "stats", "stats-report-frequency" },
-        o_statsin       = { "statsin" },
         o_statsout      = { "statsout" },
-        o_csvin         = { "csvin" },
-        o_csvout        = { "csvout" },
         o_statspf       = { "pf", "statspf" },
         o_statsfull     = { "f", "fullstats" },
         o_loglevel      = { "ll", "loglevel" },
-        o_logfa         = { "logfa" },
+        o_logfa         = { "lfa", "logfa" },
         o_log_internal  = { "loginternal"},
         o_logfile       = { "logfile" },
-        o_siows         = { "sio-ws" },
-        o_sioroom       = { "sio-room" },
         o_quiet         = { "q", "quiet" },
         o_verbose       = { "v", "verbose" },
         o_help          = { "h", "help" },
@@ -209,18 +197,13 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
         { o_srctime,      OptionScheme::ARG_ONE },
         { o_buffering,    OptionScheme::ARG_ONE },
         { o_statsrep,     OptionScheme::ARG_ONE },
-        { o_statsin,      OptionScheme::ARG_ONE },
         { o_statsout,     OptionScheme::ARG_ONE },
-        { o_csvin,        OptionScheme::ARG_ONE },
-        { o_csvout,       OptionScheme::ARG_ONE },
         { o_statspf,      OptionScheme::ARG_ONE },
         { o_statsfull,    OptionScheme::ARG_NONE },
         { o_loglevel,     OptionScheme::ARG_ONE },
         { o_logfa,        OptionScheme::ARG_ONE },
         { o_log_internal, OptionScheme::ARG_NONE },
         { o_logfile,      OptionScheme::ARG_ONE },
-        { o_siows,        OptionScheme::ARG_ONE },
-        { o_sioroom,      OptionScheme::ARG_ONE },
         { o_quiet,        OptionScheme::ARG_NONE },
         { o_verbose,      OptionScheme::ARG_NONE },
         { o_help,         OptionScheme::ARG_VAR },
@@ -255,20 +238,21 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
             cerr << "    -lfa <area...> - specify functional areas\n";
             cerr << "Where:\n\n";
             cerr << "    <LEVEL>: fatal error note warning debug\n\n";
-            cerr << "This turns on logs that are at the given log name and all on the left.\n";
-            cerr << "(Names from syslog, like alert, crit, emerg, err, info, panic, are also\n";
-            cerr << "recognized, but they are aligned to those that lie close in hierarchy.)\n\n";
-            cerr << "    <area...> is a space-sep list of areas to turn on or ~areas to turn off.\n\n";
-            cerr << "The list may include 'all' to turn all on or off, beside those selected.\n";
-            cerr << "Example: `-lfa ~all cc` - turns off all FA, except cc\n";
-            cerr << "Areas: general bstats control data tsbpd rexmit haicrypt cc\n";
-            cerr << "Default: all are on except haicrypt. NOTE: 'general' can't be off.\n\n";
+            cerr << "Turns on logs that are at the given log level or any higher level\n";
+            cerr << "(all to the left in the list above from the selected level).\n";
+            cerr << "Names from syslog, like alert, crit, emerg, err, info, panic, are also\n";
+            cerr << "recognized, but they are aligned to those that lie close in the above hierarchy.\n\n";
+            cerr << "    <area...> is a coma-separated list of areas to turn on.\n\n";
+            cerr << "The list may include 'all' to turn all FAs on.\n";
+            cerr << "Example: `-lfa:sockmgmt,chn-recv` enables only `sockmgmt` and `chn-recv` log FAs.\n";
+            cerr << "Default: all are on except haicrypt. NOTE: 'general' FA can't be disabled.\n\n";
             cerr << "List of functional areas:\n";
 
             map<int, string> revmap;
             for (auto entry: SrtLogFAList())
                 revmap[entry.second] = entry.first;
 
+            // Each group on a new line
             int en10 = 0;
             for (auto entry: revmap)
             {
@@ -303,18 +287,13 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
         PrintOptionHelp(o_srctime,   "<enabled=yes>", "Pass packet time from source to SRT output {yes, no}");
         PrintOptionHelp(o_buffering, "<packets=n>", "Buffer up to n incoming packets");
         PrintOptionHelp(o_statsrep,  "<every_n_packets=0>", "frequency of status report");
-        PrintOptionHelp(o_statsin,   "<filename>", "input stats to file");
         PrintOptionHelp(o_statsout,  "<filename>", "output stats to file");
-        PrintOptionHelp(o_csvin,     "<folderpath>", "log input stats to csv file");
-        PrintOptionHelp(o_csvout,    "<folderpath>", "log output stats to csv file");
         PrintOptionHelp(o_statspf,   "<format=default>", "stats printing format {json, csv, default}");
         PrintOptionHelp(o_statsfull, "", "full counters in stats-report (prints total statistics)");
-        PrintOptionHelp(o_loglevel,  "<level=error>", "log level {fatal,error,info,note,warning}");
+        PrintOptionHelp(o_loglevel,  "<level=warn>", "log level {fatal,error,warn,note,info,debug}");
         PrintOptionHelp(o_logfa,     "<fas>", "log functional area (see '-h logging' for more info)");
         //PrintOptionHelp(o_log_internal, "", "use internal logger");
-        PrintOptionHelp(o_logfile,   "<filename=\"\">", "write logs to file");
-        PrintOptionHelp(o_siows,     "<socket.io-websocket-uri>", "URI specifying websocket to send stats to");
-        PrintOptionHelp(o_sioroom,   "<socket.io-room>", "room to broadcast the stats");
+        PrintOptionHelp(o_logfile, "<filename="">", "write logs to file");
         PrintOptionHelp(o_quiet, "", "quiet mode (default off)");
         PrintOptionHelp(o_verbose,   "", "verbose mode (default off)");
         cerr << "\n";
@@ -354,12 +333,10 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
     }
     cfg.bw_report    = Option<OutNumber>(params, o_bwreport);
     cfg.stats_report = Option<OutNumber>(params, o_statsrep);
-    cfg.stats_in     = Option<OutString>(params, "", o_statsin);
     cfg.stats_out    = Option<OutString>(params, o_statsout);
-    cfg.csv_in       = Option<OutString>(params, "", o_csvin);
-    cfg.csv_out      = Option<OutString>(params, "", o_csvout);
     const string pf  = Option<OutString>(params, "default", o_statspf);
-    cfg.stats_pf     = ParsePrintFormat(pf);
+    string pfext;
+    cfg.stats_pf     = ParsePrintFormat(pf, (pfext));
     if (cfg.stats_pf == SRTSTATS_PROFMAT_INVALID)
     {
         cfg.stats_pf = SRTSTATS_PROFMAT_2COLS;
@@ -368,7 +345,7 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
     }
 
     cfg.full_stats   = OptionPresent(params, o_statsfull);
-    cfg.loglevel     = SrtParseLogLevel(Option<OutString>(params, "error", o_loglevel));
+    cfg.loglevel     = SrtParseLogLevel(Option<OutString>(params, "warn", o_loglevel));
     cfg.logfas       = SrtParseLogFA(Option<OutString>(params, "", o_logfa));
     cfg.log_internal = OptionPresent(params, o_log_internal);
     cfg.logfile      = Option<OutString>(params, o_logfile);
@@ -379,34 +356,13 @@ int parse_args(LiveTransmitConfig &cfg, int argc, char** argv)
 
     cfg.auto_reconnect = Option<OutBool>(params, true, o_autorecon);
 
-    cfg.sio_ws     = Option<OutString>(params, "http://127.0.0.1:8080", o_siows);
-    cfg.sio_room     = Option<OutString>(params, "", o_sioroom);
-
     cfg.source = params[""].at(0);
     cfg.target = params[""].at(1);
 
     return 0;
 }
 
-void sendConnectionStatus(std::string direction, bool status)
-{
-    if(sio_client->opened()) {
-        std::ostringstream srtStatusData;
-        srtStatusData << "{" << "\"direction\":\"" << direction << "\",";
-        if(sio_room != "") {
-            srtStatusData << "\"room\":\"" << sio_room << "\",";
-        }
-        srtStatusData << "\"connected\":" << status << "}" << endl;
-        cout << srtStatusData.str() << std::flush;
-        sio_client->socket()->emit("srtstatus", srtStatusData.str());
-    }
-}
 
-void onConnectionStatus(sio::event &)
-{
-    sendConnectionStatus("in", srcConnected);
-    sendConnectionStatus("out", tarConnected);
-}
 
 int main(int argc, char** argv)
 {
@@ -420,22 +376,15 @@ int main(int argc, char** argv)
     // it's called regardless of how this function returns.
     struct NetworkCleanup
     {
-        LiveTransmitConfig *cfg;
         ~NetworkCleanup()
         {
             srt_cleanup();
             SysCleanupNetwork();
-            //By Jatinder - remove log file
-            if (cfg->stats_in != "")
-                remove(cfg->stats_in.c_str());
-            if (cfg->stats_out != "")
-                remove(cfg->stats_out.c_str());
         }
     } cleanupobj;
 
 
     LiveTransmitConfig cfg;
-    cleanupobj.cfg = &cfg;
     const int parse_ret = parse_args(cfg, argc, argv);
     if (parse_ret != 0)
         return parse_ret == 1 ? EXIT_FAILURE : 0;
@@ -446,17 +395,6 @@ int main(int argc, char** argv)
     if (cfg.chunk_size > 0)
         transmit_chunk_size = cfg.chunk_size;
     transmit_stats_writer = SrtStatsWriterFactory(cfg.stats_pf);
-    stats_writer_csv = SrtStatsWriterFactory(SRTSTATS_PROFMAT_CSV);
-    sio_client = make_shared<sio::client>();
-    sio_client->connect(cfg.sio_ws);
-    sio_room = cfg.sio_room;
-
-    //ToDo - connect to room, and send stats. Not working in case API server disconnects. So sending container id with stats payload.
-    //string subscribeContainer = "{\"containerId\":\"8cb10d72fe0bac0eb67bc1086fddf75194af07ac5bfac8e7b8c44b03c34d834c\",\"type\":\"GET_SRT_STATS\"}";
-    //sio_client->socket()->emit("subscribeToStats", subscribeContainer);
-
-    sio_client->socket()->on("connectionStatus", &onConnectionStatus);
-
     transmit_bw_report = cfg.bw_report;
     transmit_stats_report = cfg.stats_report;
     transmit_total_stats = cfg.full_stats;
@@ -465,8 +403,12 @@ int main(int argc, char** argv)
     // Set SRT log levels and functional areas
     //
     srt_setloglevel(cfg.loglevel);
-    for (set<srt_logging::LogFA>::iterator i = cfg.logfas.begin(); i != cfg.logfas.end(); ++i)
-        srt_addlogfa(*i);
+    if (!cfg.logfas.empty())
+    {
+        srt_resetlogfa(nullptr, 0);
+        for (set<srt_logging::LogFA>::iterator i = cfg.logfas.begin(); i != cfg.logfas.end(); ++i)
+            srt_addlogfa(*i);
+    }
 
     //
     // SRT log handler
@@ -492,21 +434,21 @@ int main(int argc, char** argv)
         }
         else
         {
-            UDT::setlogstream(logfile_stream);
+            srt::setlogstream(logfile_stream);
         }
     }
 
 
     //
-    // SRT stats input
+    // SRT stats output
     //
     std::ofstream logfile_stats; // leave unused if not set
-    if (cfg.stats_in != "")
+    if (cfg.stats_out != "")
     {
-        logfile_stats.open(cfg.stats_in.c_str());
+        logfile_stats.open(cfg.stats_out.c_str());
         if (!logfile_stats)
         {
-            cerr << "ERROR: Can't open '" << cfg.stats_in << "' for writing stats. Fallback to stdout.\n";
+            cerr << "ERROR: Can't open '" << cfg.stats_out << "' for writing stats. Fallback to stdout.\n";
             logfile_stats.close();
         }
     }
@@ -515,26 +457,7 @@ int main(int argc, char** argv)
         g_stats_are_printed_to_stdout = true;
     }
 
-    //
-    // SRT stats output
-    //
-    std::ofstream logfile_stats_output; // leave unused if not set
-    if (cfg.stats_out != "")
-    {
-        logfile_stats_output.open(cfg.stats_out.c_str());
-        if (!logfile_stats_output)
-        {
-            cerr << "ERROR: Can't open '" << cfg.stats_out << "' for writing stats. Fallback to stdout.\n";
-            logfile_stats_output.close();
-        }
-    }
-    else if (cfg.bw_report != 0 || cfg.stats_report != 0)
-    {
-        g_stats_are_printed_to_stdout = true;
-    }
-
     ostream &out_stats = logfile_stats.is_open() ? logfile_stats : cout;
-    ostream &out_stats_output = logfile_stats_output.is_open() ? logfile_stats_output : cout;
 
 #ifdef _WIN32
 
@@ -567,9 +490,9 @@ int main(int argc, char** argv)
     }
 
     unique_ptr<Source> src;
-    srcConnected = false;
+    bool srcConnected = false;
     unique_ptr<Target> tar;
-    tarConnected = false;
+    bool tarConnected = false;
 
     int pollid = srt_epoll_create();
     if (pollid < 0)
@@ -746,15 +669,9 @@ int main(int argc, char** argv)
                             }
 #endif
                             if (issource)
-                            {
                                 srcConnected = true;
-                                sendConnectionStatus("in", srcConnected);
-                            }
                             else
-                            {
                                 tarConnected = true;
-                                sendConnectionStatus("out", tarConnected);
-                            }
                         }
                     }
                     break;
@@ -772,7 +689,6 @@ int main(int argc, char** argv)
                                         << endl;
                                 }
                                 srcConnected = false;
-                                sendConnectionStatus("in", srcConnected);
                             }
                         }
                         else if (tarConnected)
@@ -780,7 +696,6 @@ int main(int argc, char** argv)
                             if (!cfg.quiet)
                                 cerr << "SRT target disconnected" << endl;
                             tarConnected = false;
-                            sendConnectionStatus("out", tarConnected);
                         }
 
                         if(!cfg.auto_reconnect)
@@ -816,7 +731,6 @@ int main(int argc, char** argv)
                                 if (!cfg.quiet)
                                     cerr << "SRT source connected" << endl;
                                 srcConnected = true;
-                                sendConnectionStatus("in", srcConnected);
                             }
                         }
                         else if (!tarConnected)
@@ -824,7 +738,6 @@ int main(int argc, char** argv)
                             if (!cfg.quiet)
                                 cerr << "SRT target connected" << endl;
                             tarConnected = true;
-                            sendConnectionStatus("out", tarConnected);
                             if (tar->uri.type() == UriParser::SRT)
                             {
                                 const int events = SRT_EPOLL_IN | SRT_EPOLL_ERR;
@@ -872,7 +785,7 @@ int main(int argc, char** argv)
                     while (dataqueue.size() < cfg.buffering)
                     {
                         std::shared_ptr<MediaPacket> pkt(new MediaPacket(transmit_chunk_size));
-                        const int res = src->Read(transmit_chunk_size, *pkt, out_stats, cfg.csv_in.c_str());
+                        const int res = src->Read(transmit_chunk_size, *pkt, out_stats);
 
                         if (res == SRT_ERROR && src->uri.type() == UriParser::SRT)
                         {
@@ -902,7 +815,7 @@ int main(int argc, char** argv)
                     {
                         lostBytes += pkt->payload.size();
                     }
-                    else if (!tar->Write(pkt->payload.data(), pkt->payload.size(), cfg.srctime ? pkt->time : 0, out_stats_output, cfg.csv_out.c_str()))
+                    else if (!tar->Write(pkt->payload.data(), pkt->payload.size(), cfg.srctime ? pkt->time : 0, out_stats))
                     {
                         lostBytes += pkt->payload.size();
                     }

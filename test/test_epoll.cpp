@@ -348,9 +348,9 @@ TEST(CEPoll, NotifyConnectionBreak)
 
     // The caller will close connection after 1 second
     auto close_res = std::async(std::launch::async, [&client_sock]() {
-        cout << "TEST(async call): WILL CLOSE client connection in 3s\n";
+        cout << "(async call): WILL CLOSE client connection in 3s\n";
         this_thread::sleep_for(chrono::seconds(1));
-        cout << "TEST(async call): Closing client connection\n";
+        cout << "(async call): Closing client connection\n";
         return srt_close(client_sock);
         });
 
@@ -408,7 +408,7 @@ TEST(CEPoll, HandleEpollEvent2)
 
     int result = epoll.uwait(epoll_id, fds, 1024, -1);
     ASSERT_EQ(result, 1); 
-    ASSERT_EQ(fds[0].events, SRT_EPOLL_ERR);
+    ASSERT_EQ(fds[0].events, int(SRT_EPOLL_ERR));
 
     // Edge-triggered means that after one wait call was done, the next
     // call to this event should no longer report it. Now use timeout 0
@@ -529,7 +529,7 @@ TEST(CEPoll, ThreadedUpdate)
     int result = epoll.uwait(epoll_id, fds, 1024, -1);
     cerr << "Exit no longer infinite-wait by uwait, result=" << result << "\n";
     ASSERT_EQ(result, 1); 
-    ASSERT_EQ(fds[0].events, SRT_EPOLL_ERR);
+    ASSERT_EQ(fds[0].events, int(SRT_EPOLL_ERR));
 
     cerr << "THREAD JOIN...\n";
     td.join();

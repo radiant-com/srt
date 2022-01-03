@@ -7,12 +7,44 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
  */
+#include "platform_sys.h"
+
 #include <iomanip>
 #include <math.h>
 #include <stdexcept>
 #include "sync.h"
 #include "srt_compat.h"
 #include "common.h"
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Clock frequency helpers
+//
+////////////////////////////////////////////////////////////////////////////////
+
+namespace {
+template <int val>
+int pow10();
+
+template <>
+int pow10<10>()
+{
+    return 1;
+}
+
+template <int val>
+int pow10()
+{
+    return 1 + pow10<val / 10>();
+}
+}
+
+int srt::sync::clockSubsecondPrecision()
+{
+    const int64_t ticks_per_sec = (srt::sync::steady_clock::period::den / srt::sync::steady_clock::period::num);
+    const int     decimals      = pow10<ticks_per_sec>();
+    return decimals;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -36,12 +68,12 @@ void srt::sync::Condition::wait(UniqueLock& lock)
 bool srt::sync::Condition::wait_for(UniqueLock& lock, const steady_clock::duration& rel_time)
 {
     // Another possible implementation is wait_until(steady_clock::now() + timeout);
-    return m_cv.wait_for(lock, rel_time) != cv_status::timeout;
+    return m_cv.wait_for(lock, rel_time) != std::cv_status::timeout;
 }
 
 bool srt::sync::Condition::wait_until(UniqueLock& lock, const steady_clock::time_point& timeout_time)
 {
-    return m_cv.wait_until(lock, timeout_time) != cv_status::timeout;
+    return m_cv.wait_until(lock, timeout_time) != std::cv_status::timeout;
 }
 
 void srt::sync::Condition::notify_one()

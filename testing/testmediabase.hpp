@@ -11,19 +11,24 @@
 #ifndef INC_SRT_COMMON_TRANMITBASE_HPP
 #define INC_SRT_COMMON_TRANMITBASE_HPP
 
+#include <atomic>
 #include <string>
 #include <memory>
 #include <vector>
 #include <iostream>
 #include <stdexcept>
 
+#include "uriparser.hpp"
+
 typedef std::vector<char> bytevector;
-extern volatile bool transmit_throw_on_interrupt;
+extern std::atomic<bool> transmit_throw_on_interrupt;
 extern int transmit_bw_report;
 extern unsigned transmit_stats_report;
 extern size_t transmit_chunk_size;
 extern bool transmit_printformat_json;
 extern bool transmit_use_sourcetime;
+extern int transmit_retry_connect;
+extern bool transmit_retry_always;
 
 struct MediaPacket
 {

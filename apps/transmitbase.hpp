@@ -19,7 +19,6 @@
 #include "srt.h"
 #include "uriparser.hpp"
 #include "apputil.hpp"
-#include "../thirdparty/socket.io-client-cpp/src/sio_client.h"
 
 typedef std::vector<char> bytevector;
 extern bool transmit_total_stats;
@@ -44,9 +43,6 @@ struct MediaPacket
 };
 
 extern std::shared_ptr<SrtStatsWriter> transmit_stats_writer;
-extern std::shared_ptr<SrtStatsWriter> stats_writer_csv;
-extern std::shared_ptr<sio::client> sio_client;
-extern std::string sio_room;
 
 class Location
 {
@@ -58,7 +54,7 @@ public:
 class Source: public Location
 {
 public:
-    virtual int  Read(size_t chunk, MediaPacket& pkt, std::ostream &out_stats = std::cout, std::string csv_stats_file = "") = 0;
+    virtual int  Read(size_t chunk, MediaPacket& pkt, std::ostream &out_stats = std::cout) = 0;
     virtual bool IsOpen() = 0;
     virtual bool End() = 0;
     static std::unique_ptr<Source> Create(const std::string& url);
@@ -81,7 +77,7 @@ public:
 class Target: public Location
 {
 public:
-    virtual int  Write(const char* data, size_t size, int64_t src_time, std::ostream &out_stats = std::cout, std::string csv_stats_file = "") = 0;
+    virtual int  Write(const char* data, size_t size, int64_t src_time, std::ostream &out_stats = std::cout) = 0;
     virtual bool IsOpen() = 0;
     virtual bool Broken() = 0;
     virtual void Close() {}

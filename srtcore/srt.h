@@ -35,7 +35,7 @@ written by
 
 
 #ifdef _WIN32
-   #ifndef __MINGW__
+   #ifndef __MINGW32__
       // Explicitly define 32-bit and 64-bit numbers
       typedef __int32 int32_t;
       typedef __int64 int64_t;
@@ -56,7 +56,7 @@ written by
       #else
          #define SRT_API
       #endif
-   #else // __MINGW__
+   #else // __MINGW32__
       #define SRT_API
    #endif
 #else
@@ -152,13 +152,17 @@ typedef int32_t SRTSOCKET;
 static const int32_t SRTGROUP_MASK = (1 << 30);
 
 #ifdef _WIN32
-   #ifndef __MINGW__
+   #ifndef __MINGW32__
       typedef SOCKET SYSSOCKET;
    #else
       typedef int SYSSOCKET;
    #endif
 #else
    typedef int SYSSOCKET;
+#endif
+
+#ifndef ENABLE_EXPERIMENTAL_BONDING
+#define ENABLE_EXPERIMENTAL_BONDING 0
 #endif
 
 typedef SYSSOCKET UDPSOCKET;
@@ -206,8 +210,8 @@ typedef enum SRT_SOCKOPT {
    SRTO_LATENCY = 23,        // NOT RECOMMENDED. SET: to both SRTO_RCVLATENCY and SRTO_PEERLATENCY. GET: same as SRTO_RCVLATENCY.
    SRTO_INPUTBW = 24,        // Estimated input stream rate.
    SRTO_OHEADBW,             // MaxBW ceiling based on % over input stream rate. Applies when UDT_MAXBW=0 (auto).
-   SRTO_PASSPHRASE = 26,     // Crypto PBKDF2 Passphrase size[0,10..64] 0:disable crypto
-   SRTO_PBKEYLEN,            // Crypto key len in bytes {16,24,32} Default: 16 (128-bit)
+   SRTO_PASSPHRASE = 26,     // Crypto PBKDF2 Passphrase (must be 10..79 characters, or empty to disable encryption)
+   SRTO_PBKEYLEN,            // Crypto key len in bytes {16,24,32} Default: 16 (AES-128)
    SRTO_KMSTATE,             // Key Material exchange status (UDT_SRTKmState)
    SRTO_IPTTL = 29,          // IP Time To Live (passthru for system sockopt IPPROTO_IP/IP_TTL)
    SRTO_IPTOS,               // IP Type of Service (passthru for system sockopt IPPROTO_IP/IP_TOS)
@@ -218,6 +222,7 @@ typedef enum SRT_SOCKOPT {
    SRTO_PEERVERSION,         // Peer SRT Version (from SRT Handshake)
    SRTO_CONNTIMEO = 36,      // Connect timeout in msec. Caller default: 3000, rendezvous (x 10)
    SRTO_DRIFTTRACER = 37,    // Enable or disable drift tracer
+   SRTO_MININPUTBW = 38,     // Minimum estimate of input stream rate.
    // (some space left)
    SRTO_SNDKMSTATE = 40,     // (GET) the current state of the encryption at the peer side
    SRTO_RCVKMSTATE,          // (GET) the current state of the encryption at the agent side
@@ -235,14 +240,16 @@ typedef enum SRT_SOCKOPT {
    SRTO_ENFORCEDENCRYPTION,  // Connection to be rejected or quickly broken when one side encryption set or bad password
    SRTO_IPV6ONLY,            // IPV6_V6ONLY mode
    SRTO_PEERIDLETIMEO,       // Peer-idle timeout (max time of silence heard from peer) in [ms]
+   SRTO_BINDTODEVICE,        // Forward the SOL_SOCKET/SO_BINDTODEVICE option on socket (pass packets only from that device)
 #if ENABLE_EXPERIMENTAL_BONDING
    SRTO_GROUPCONNECT,        // Set on a listener to allow group connection
    SRTO_GROUPSTABTIMEO,      // Stability timeout (backup groups) in [us]
    SRTO_GROUPTYPE,           // Group type to which an accepted socket is about to be added, available in the handshake
 #endif
-   SRTO_BINDTODEVICE,        // Forward the SOL_SOCKET/SO_BINDTODEVICE option on socket (pass packets only from that device)
    SRTO_PACKETFILTER = 60,   // Add and configure a packet filter
-   SRTO_RETRANSMITALGO = 61  // An option to select packet retransmission algorithm
+   SRTO_RETRANSMITALGO = 61,  // An option to select packet retransmission algorithm
+
+   SRTO_E_SIZE // Always last element, not a valid option.
 } SRT_SOCKOPT;
 
 
@@ -307,7 +314,6 @@ static const int SRT_LIVE_DEF_LATENCY_MS = 120;
 struct CBytePerfMon
 {
    // global measurements
-   int64_t  timeStamp;                  // time stamp
    int64_t  msTimeStamp;                // time since the UDT entity is started, in milliseconds
    int64_t  pktSentTotal;               // total number of sent data packets, including retransmissions
    int64_t  pktRecvTotal;               // total number of received packets
@@ -395,8 +401,6 @@ struct CBytePerfMon
    int      pktRcvFilterSupply;         // number of packets that the filter supplied extra (e.g. FEC rebuilt)
    int      pktRcvFilterLoss;           // number of packet loss not coverable by filter
    int      pktReorderTolerance;        // packet reorder tolerance value
-   int      pktRcvRetransTotal;         // total number of retransmitted packets received
-   int64_t  pktRcvBelatedTotal;              // total number of received AND IGNORED packets due to having come too late
    //<
 
    // New stats in 1.5.0
@@ -469,6 +473,7 @@ enum CodeMinor
     MN_XSIZE           = 12,
     MN_EIDINVAL        = 13,
     MN_EEMPTY          = 14,
+    MN_BUSYPORT        = 15,
     // MJ_AGAIN
     MN_WRAVAIL         =  1,
     MN_RDAVAIL         =  2,
@@ -524,6 +529,7 @@ typedef enum SRT_ERRNO
     SRT_ELARGEMSG       = MN(NOTSUP, XSIZE),
     SRT_EINVPOLLID      = MN(NOTSUP, EIDINVAL),
     SRT_EPOLLEMPTY      = MN(NOTSUP, EEMPTY),
+    SRT_EBINDCONFLICT   = MN(NOTSUP, BUSYPORT),
 
     SRT_EASYNCFAIL      = MJ(AGAIN),
     SRT_EASYNCSND       = MN(AGAIN, WRAVAIL),
@@ -859,7 +865,7 @@ SRT_API       int srt_setsockflag  (SRTSOCKET u, SRT_SOCKOPT opt, const void* op
 typedef struct SRT_MsgCtrl_
 {
    int flags;            // Left for future
-   int msgttl;           // TTL for a message, default -1 (no TTL limitation)
+   int msgttl;           // TTL for a message (millisec), default -1 (no TTL limitation)
    int inorder;          // Whether a message is allowed to supersede partially lost one. Unused in stream and live mode.
    int boundary;         // 0:mid pkt, 1(01b):end of frame, 2(11b):complete frame, 3(10b): start of frame
    int64_t srctime;      // source time since epoch (usec), 0: use internal time (sender)
@@ -957,7 +963,7 @@ typedef struct SRT_EPOLL_EVENT_STR
     int       events; // SRT_EPOLL_IN | SRT_EPOLL_OUT | SRT_EPOLL_ERR
 #ifdef __cplusplus
     SRT_EPOLL_EVENT_STR(SRTSOCKET s, int ev): fd(s), events(ev) {}
-    SRT_EPOLL_EVENT_STR() {} // NOTE: allows singular values, no init.
+    SRT_EPOLL_EVENT_STR(): fd(-1), events(0) {} // NOTE: allows singular values, no init.
 #endif
 } SRT_EPOLL_EVENT;
 SRT_API int srt_epoll_uwait(int eid, SRT_EPOLL_EVENT* fdsSet, int fdsSize, int64_t msTimeOut);
@@ -983,13 +989,25 @@ SRT_API int srt_getsndbuffer(SRTSOCKET sock, size_t* blocks, size_t* bytes);
 SRT_API int srt_getrejectreason(SRTSOCKET sock);
 SRT_API int srt_setrejectreason(SRTSOCKET sock, int value);
 SRT_API extern const char* const srt_rejectreason_msg [];
-const char* srt_rejectreason_str(int id);
+SRT_API const char* srt_rejectreason_str(int id);
 
 SRT_API uint32_t srt_getversion(void);
 
 SRT_API int64_t srt_time_now(void);
 
 SRT_API int64_t srt_connection_time(SRTSOCKET sock);
+
+// Possible internal clock types
+#define SRT_SYNC_CLOCK_STDCXX_STEADY      0 // C++11 std::chrono::steady_clock
+#define SRT_SYNC_CLOCK_GETTIME_MONOTONIC  1 // clock_gettime with CLOCK_MONOTONIC
+#define SRT_SYNC_CLOCK_WINQPC             2
+#define SRT_SYNC_CLOCK_MACH_ABSTIME       3
+#define SRT_SYNC_CLOCK_POSIX_GETTIMEOFDAY 4
+#define SRT_SYNC_CLOCK_AMD64_RDTSC        5
+#define SRT_SYNC_CLOCK_IA32_RDTSC         6
+#define SRT_SYNC_CLOCK_IA64_ITC           7
+
+SRT_API int srt_clock_type(void);
 
 #ifdef __cplusplus
 }

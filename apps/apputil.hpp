@@ -19,9 +19,7 @@
 #include <memory>
 
 #include "netinet_any.h"
-
-extern bool srcConnected;
-extern bool tarConnected;
+#include "utilities.h"
 
 #if _WIN32
 
@@ -60,6 +58,19 @@ inline void SysCleanupNetwork()
 #include <arpa/inet.h>
 #include <unistd.h>
 
+// Fixes Android build on NDK r16b and earlier.
+#if defined(__ANDROID__) && (__ANDROID__ == 1)
+   #include <android/ndk-version.h>
+   #if !defined(__NDK_MAJOR__) || (__NDK_MAJOR__ <= 16)
+      struct ip_mreq_sourceFIXED {
+        struct in_addr imr_multiaddr;
+        struct in_addr imr_interface;
+        struct in_addr imr_sourceaddr;
+      };
+      #define ip_mreq_source ip_mreq_sourceFIXED
+   #endif
+#endif
+
 // Nothing needs to be done on POSIX; this is a Windows problem.
 inline bool SysInitializeNetwork() {return true;}
 inline void SysCleanupNetwork() {}
@@ -70,13 +81,30 @@ inline void SysCleanupNetwork() {}
 
 #ifdef _WIN32
 inline int SysError() { return ::GetLastError(); }
+const int SysAGAIN = WSAEWOULDBLOCK;
 #else
 inline int SysError() { return errno; }
+const int SysAGAIN = EAGAIN;
 #endif
 
 sockaddr_any CreateAddr(const std::string& name, unsigned short port = 0, int pref_family = AF_UNSPEC);
 std::string Join(const std::vector<std::string>& in, std::string sep);
 
+template <class VarType, class ValType>
+struct OnReturnSetter
+{
+    VarType& var;
+    ValType value;
+
+    OnReturnSetter(VarType& target, ValType v): var(target), value(v) {}
+    ~OnReturnSetter() { var = value; }
+};
+
+template <class VarType, class ValType>
+OnReturnSetter<VarType, ValType> OnReturnSet(VarType& target, ValType v)
+{ return OnReturnSetter<VarType, ValType>(target, v); }
+
+// ---- OPTIONS MODULE
 
 inline bool CheckTrue(const std::vector<std::string>& in)
 {
@@ -192,7 +220,7 @@ struct OptionScheme
 
     OptionScheme(const OptionName& id, Args tp);
 
-	const std::set<std::string>& names();
+    const std::set<std::string>& names() const;
 };
 
 struct OptionName
@@ -237,7 +265,7 @@ private:
 };
 
 inline OptionScheme::OptionScheme(const OptionName& id, Args tp): pid(&id), type(tp) {}
-inline const std::set<std::string>& OptionScheme::names() { return pid->names; }
+inline const std::set<std::string>& OptionScheme::names() const { return pid->names; }
 
 template <class OutType, class OutValue> inline
 typename OutType::type Option(const options_t&, OutValue deflt=OutValue()) { return deflt; }
@@ -317,21 +345,77 @@ enum SrtStatsPrintFormat
     SRTSTATS_PROFMAT_CSV
 };
 
-SrtStatsPrintFormat ParsePrintFormat(std::string pf);
+SrtStatsPrintFormat ParsePrintFormat(std::string pf, std::string& w_extras);
 
-enum SrtDirection
+enum SrtStatCat
 {
-    SRTDIRECTION_IN,
-    SRTDIRECTION_OUT
+    SSC_GEN, //< General
+    SSC_WINDOW, // flow/congestion window
+    SSC_LINK, //< Link data
+    SSC_SEND, //< Sending
+    SSC_RECV //< Receiving
+};
+
+struct SrtStatData
+{
+    SrtStatCat category;
+    std::string name;
+    std::string longname;
+
+    SrtStatData(SrtStatCat cat, std::string n, std::string l): category(cat), name(n), longname(l) {}
+    virtual ~SrtStatData() {}
+
+    virtual void PrintValue(std::ostream& str, const CBytePerfMon& mon) = 0;
+};
+
+template <class TYPE>
+struct SrtStatDataType: public SrtStatData
+{
+    typedef TYPE CBytePerfMon::*pfield_t;
+    pfield_t pfield;
+
+    SrtStatDataType(SrtStatCat cat, const std::string& name, const std::string& longname, pfield_t field)
+        : SrtStatData (cat, name, longname), pfield(field)
+    {
+    }
+
+    void PrintValue(std::ostream& str, const CBytePerfMon& mon) override
+    {
+        str << mon.*pfield;
+    }
 };
 
 class SrtStatsWriter
 {
 public:
-    virtual std::string WriteStats(int sid, const CBytePerfMon& mon, SrtDirection direction) = 0;
+    virtual std::string WriteStats(int sid, const CBytePerfMon& mon) = 0;
     virtual std::string WriteBandwidth(double mbpsBandwidth) = 0;
     virtual ~SrtStatsWriter() { };
+
+    // Only if HAS_PUT_TIME. Specified in the imp file.
+    std::string print_timestamp();
+
+    void Option(const std::string& key, const std::string& val)
+    {
+        options[key] = val;
+    }
+
+    bool Option(const std::string& key, std::string* rval = nullptr)
+    {
+        const std::string* out = map_getp(options, key);
+        if (!out)
+            return false;
+
+        if (rval)
+            *rval = *out;
+        return true;
+    }
+
+protected:
+    std::map<std::string, std::string> options;
 };
+
+extern std::vector<std::unique_ptr<SrtStatData>> g_SrtStatsTable;
 
 std::shared_ptr<SrtStatsWriter> SrtStatsWriterFactory(SrtStatsPrintFormat printformat);
 

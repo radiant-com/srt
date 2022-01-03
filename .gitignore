@@ -38,18 +38,8 @@ _*/
 .vs/
 .vscode/
 
-# Make files
-CMakeCache.txt
-CMakeFiles/
-Makefile
-cmake_install.cmake
-haisrt.pc
-srt.pc
-version.h
+# Ignore vcpkg submodule
+vcpkg/
 
-#Build files
-libsrt.so.1
-libsrt.so.1.4.2
-srt-file-transmit
-srt-live-transmit
-srt-tunnel
+# LSP
+compile_commands.json

@@ -70,10 +70,10 @@ modified by
 #include "srt.h"
 
 /*
-* SRT_ENABLE_THREADCHECK (THIS IS SET IN MAKEFILE NOT HERE)
+* SRT_ENABLE_THREADCHECK IS SET IN MAKEFILE, NOT HERE
 */
 #if defined(SRT_ENABLE_THREADCHECK)
-#include <threadcheck.h>
+#include "threadcheck.h"
 #else
 #define THREAD_STATE_INIT(name)
 #define THREAD_EXIT()
@@ -82,20 +82,12 @@ modified by
 #define INCREMENT_THREAD_ITERATIONS()
 #endif
 
-/* Obsolete way to define MINGW */
-#ifndef __MINGW__
-#if defined(__MINGW32__) || defined(__MINGW64__)
-#define __MINGW__ 1
-#endif
-#endif
-
 #ifdef __cplusplus
 #include <fstream>
 #include <set>
 #include <string>
 #include <vector>
 #endif
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -110,7 +102,6 @@ modified by
 struct CPerfMon
 {
    // global measurements
-   int64_t timeStamp;                   // time stamp, in milliseconds
    int64_t msTimeStamp;                 // time since the UDT entity is started, in milliseconds
    int64_t pktSentTotal;                // total number of sent data packets, including retransmissions
    int64_t pktRecvTotal;                // total number of received packets
@@ -139,9 +130,8 @@ struct CPerfMon
    double mbpsRecvRate;                 // receiving rate in Mb/s
    int64_t usSndDuration;		// busy sending time (i.e., idle time exclusive)
    int pktReorderDistance;              // size of order discrepancy in received sequences
-   double pktRcvAvgBelatedTime;         // average time of packet delay for belated packets (packets with sequence past the ACK)
+   double pktRcvAvgBelatedTime;             // average time of packet delay for belated packets (packets with sequence past the ACK)
    int64_t pktRcvBelated;              // number of received AND IGNORED packets due to having come too late
-   int64_t pktRcvBelatedTotal;         // total number of received AND IGNORED packets due to having come too late
 
    // instant measurements
    double usPktSndPeriod;               // packet sending period, in microseconds
@@ -259,7 +249,7 @@ namespace logging {
     using namespace srt_logging;
 }
 
-}
+} // namespace srt
 
 // Planned deprecated removal: rel1.6.0
 // There's also no portable way possible to enforce a deprecation
