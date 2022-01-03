@@ -102,6 +102,7 @@ modified by
 struct CPerfMon
 {
    // global measurements
+   int64_t timeStamp;                   // time stamp, in milliseconds
    int64_t msTimeStamp;                 // time since the UDT entity is started, in milliseconds
    int64_t pktSentTotal;                // total number of sent data packets, including retransmissions
    int64_t pktRecvTotal;                // total number of received packets
@@ -132,6 +133,7 @@ struct CPerfMon
    int pktReorderDistance;              // size of order discrepancy in received sequences
    double pktRcvAvgBelatedTime;             // average time of packet delay for belated packets (packets with sequence past the ACK)
    int64_t pktRcvBelated;              // number of received AND IGNORED packets due to having come too late
+   int64_t pktRcvBelatedTotal;         // total number of received AND IGNORED packets due to having come too late
 
    // instant measurements
    double usPktSndPeriod;               // packet sending period, in microseconds

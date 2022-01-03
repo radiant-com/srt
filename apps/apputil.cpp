@@ -376,6 +376,9 @@ struct SrtStatsTableInit
     SrtStatsTableInit(vector<unique_ptr<SrtStatData>>& s)
     {
         STATX(GEN, time, Time, msTimeStamp);
+        STATX(GEN, timeStamp, Time, timeStamp);
+        //STAT(GEN, direction, "ToDo");
+        //STAT(GEN, peerIP, "ToDo");
 
         STAT(WINDOW, flow, pktFlowWindow);
         STAT(WINDOW, congestion, pktCongestionWindow);
@@ -384,6 +387,8 @@ struct SrtStatsTableInit
         STAT(LINK, rtt, msRTT);
         STAT(LINK, bandwidth, mbpsBandwidth);
         STAT(LINK, maxBandwidth, mbpsMaxBW);
+        //STAT(LINK, latency, rcv_latency);
+        //STAT(LINK, connected, connected);
 
         STAT(SEND, packets, pktSent);
         STAT(SEND, packetsUnique, pktSentUnique);
@@ -391,9 +396,13 @@ struct SrtStatsTableInit
         STAT(SEND, packetsDropped, pktSndDrop);
         STAT(SEND, packetsRetransmitted, pktRetrans);
         STAT(SEND, packetsFilterExtra, pktSndFilterExtra);
+        STAT(SEND, packetsTotal, pktSentTotal);
+        STAT(SEND, packetsLostTotal, pktSndLossTotal);
+        STAT(SEND, packetsDroppedTotal, pktSndDropTotal);
         STAT(SEND, bytes, byteSent);
         STAT(SEND, bytesUnique, byteSentUnique);
         STAT(SEND, bytesDropped, byteSndDrop);
+        STAT(SEND, packetsRetransmittedTotal, pktRetransTotal);
         STAT(SEND, byteAvailBuf, byteAvailSndBuf);
         STAT(SEND, msBuf, msSndBuf);
         STAT(SEND, mbitRate, mbpsSendRate);
@@ -405,13 +414,22 @@ struct SrtStatsTableInit
         STAT(RECV, packetsDropped, pktRcvDrop);
         STAT(RECV, packetsRetransmitted, pktRcvRetrans);
         STAT(RECV, packetsBelated, pktRcvBelated);
+        STAT(RECV, packetsUndecrypted, pktRcvUndecryptTotal);
         STAT(RECV, packetsFilterExtra, pktRcvFilterExtra);
         STAT(RECV, packetsFilterSupply, pktRcvFilterSupply);
         STAT(RECV, packetsFilterLoss, pktRcvFilterLoss);
+        STAT(RECV, packetsTotal, pktRecvTotal);
+        STAT(RECV, packetsLostTotal, pktRcvLossTotal);
+        STAT(RECV, packetsDroppedTotal, pktRcvDropTotal);
         STAT(RECV, bytes, byteRecv);
         STAT(RECV, bytesUnique, byteRecvUnique);
         STAT(RECV, bytesLost, byteRcvLoss);
         STAT(RECV, bytesDropped, byteRcvDrop);
+        STAT(RECV, bytesUndecrypted, byteRcvUndecryptTotal);
+        STAT(RECV, bufferMs, msRcvBuf);
+        STAT(RECV, packetsRetransmittedTotal, pktRcvRetransTotal);
+        STAT(RECV, packetsBelatedTotal, pktRcvBelatedTotal);
+        STAT(RECV, packetsBelatedAverageTime, pktRcvAvgBelatedTime);
         STAT(RECV, byteAvailBuf, byteAvailRcvBuf);
         STAT(RECV, msBuf, msRcvBuf);
         STAT(RECV, mbitRate, mbpsRecvRate);

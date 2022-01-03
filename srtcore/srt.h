@@ -314,6 +314,7 @@ static const int SRT_LIVE_DEF_LATENCY_MS = 120;
 struct CBytePerfMon
 {
    // global measurements
+   int64_t  timeStamp;                  // time stamp
    int64_t  msTimeStamp;                // time since the UDT entity is started, in milliseconds
    int64_t  pktSentTotal;               // total number of sent data packets, including retransmissions
    int64_t  pktRecvTotal;               // total number of received packets
@@ -401,6 +402,8 @@ struct CBytePerfMon
    int      pktRcvFilterSupply;         // number of packets that the filter supplied extra (e.g. FEC rebuilt)
    int      pktRcvFilterLoss;           // number of packet loss not coverable by filter
    int      pktReorderTolerance;        // packet reorder tolerance value
+   int      pktRcvRetransTotal;         // total number of retransmitted packets received
+   int64_t  pktRcvBelatedTotal;         // total number of received AND IGNORED packets due to having come too late
    //<
 
    // New stats in 1.5.0
