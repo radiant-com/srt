@@ -116,6 +116,8 @@ const int       UDT::ERROR        = srt::CUDT::ERROR;
         2[31..16]:  TsbPD resv      0
         2[15..0]:   TsbPD delay     [0..60000] msec
 */
+std::string  peerIPInput = "";
+std::string  peerIPOutput = "";
 
 extern const SRT_SOCKOPT srt_post_opt_list [SRT_SOCKOPT_NPOST] = {
     SRTO_SNDSYN,
@@ -856,9 +858,11 @@ void srt::CUDT::clearData()
             = m_stats.traceSndLoss = m_stats.traceRcvLoss = m_stats.traceRetrans
             = m_stats.sentACK = m_stats.recvACK = m_stats.sentNAK = m_stats.recvNAK = 0;
         m_stats.traceRcvRetrans                                                   = 0;
+        m_stats.traceRcvRetransTotal                                              = 0;
         m_stats.traceReorderDistance                                              = 0;
         m_stats.traceBelatedTime                                                  = 0.0;
         m_stats.traceRcvBelated                                                   = 0;
+        m_stats.traceRcvBelatedTotal                                              = 0;
 
         m_stats.sndDropTotal = 0;
         m_stats.traceSndDrop = 0;
@@ -5577,6 +5581,10 @@ void srt::CUDT::acceptAndRespond(const sockaddr_any& agent, const sockaddr_any& 
 
     // And of course, it is connected.
     m_bConnected = true;
+    if(peerIPInput == " ")
+        peerIPInput = m_PeerAddr.str();
+    else if(peerIPOutput == " ")
+        peerIPOutput = m_PeerAddr.str();
 
     // Register this socket for receiving data packets.
     m_pRNode->m_bOnList = true;
@@ -7091,6 +7099,7 @@ void srt::CUDT::bstats(CBytePerfMon *perf, bool clear, bool instantaneous)
 
     const steady_clock::time_point currtime = steady_clock::now();
 
+    perf->timeStamp            = count_milliseconds(currtime.time_since_epoch());
     perf->msTimeStamp          = count_milliseconds(currtime - m_stats.tsStartTime);
     perf->pktSent              = m_stats.traceSent;
     perf->pktSentUnique        = m_stats.traceSentUniq;
@@ -7109,6 +7118,7 @@ void srt::CUDT::bstats(CBytePerfMon *perf, bool clear, bool instantaneous)
     perf->pktReorderTolerance  = m_iReorderTolerance;
     perf->pktRcvAvgBelatedTime = m_stats.traceBelatedTime;
     perf->pktRcvBelated        = m_stats.traceRcvBelated;
+    perf->pktRcvBelatedTotal   = m_stats.traceRcvBelatedTotal;
 
     perf->pktSndFilterExtra  = m_stats.sndFilterExtra;
     perf->pktRcvFilterExtra  = m_stats.rcvFilterExtra;
@@ -7139,6 +7149,7 @@ void srt::CUDT::bstats(CBytePerfMon *perf, bool clear, bool instantaneous)
     perf->pktSndLossTotal    = m_stats.sndLossTotal;
     perf->pktRcvLossTotal    = m_stats.rcvLossTotal;
     perf->pktRetransTotal    = m_stats.retransTotal;
+    perf->pktRcvRetransTotal = m_stats.traceRcvRetransTotal;
     perf->pktSentACKTotal    = m_stats.sentACKTotal;
     perf->pktRecvACKTotal    = m_stats.recvACKTotal;
     perf->pktSentNAKTotal    = m_stats.sentNAKTotal;
@@ -9412,6 +9423,7 @@ int srt::CUDT::processData(CUnit* in_unit)
         // This packet was retransmitted
         enterCS(m_StatsLock);
         m_stats.traceRcvRetrans++;
+        m_stats.traceRcvRetransTotal++;
         leaveCS(m_StatsLock);
 
 #if ENABLE_HEAVY_LOGGING
@@ -9632,6 +9644,7 @@ int srt::CUDT::processData(CUnit* in_unit)
                 enterCS(m_StatsLock);
                 m_stats.traceBelatedTime = bltime / 1000.0;
                 m_stats.traceRcvBelated++;
+                m_stats.traceRcvBelatedTotal++;
                 leaveCS(m_StatsLock);
                 HLOGC(qrlog.Debug,
                       log << CONID() << "RECEIVED: seq=" << packet.m_iSeqNo << " offset=" << offset << " (BELATED/"

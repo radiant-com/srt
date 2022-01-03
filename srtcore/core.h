@@ -1102,6 +1102,8 @@ private: // Trace
 
         int64_t sndDuration;                // real time for sending
         time_point sndDurationCounter;         // timers to record the sending Duration
+        int traceRcvRetransTotal;           // total of retransmitted packets in the last trace interval
+        int64_t traceRcvBelatedTotal;       // total of belated packets received
     } m_stats;
 
 public:
