@@ -44,18 +44,20 @@ vcpkg/
 # LSP
 compile_commands.json
 
-#configure and make files
+# Make files
 CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
 config-status.sh
 haisrt.pc
+srt.pc
+version.h
+
+#Build files
 libsrt.so.1.4
 libsrt.so.1.4.4
 srt-file-transmit
 srt-live-transmit
 srt-tunnel
-srt.pc
-version.h
 

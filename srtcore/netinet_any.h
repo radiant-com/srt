@@ -27,6 +27,9 @@ written by
 // You can use the instances of sockaddr_any in every place where sockaddr is
 // required.
 
+extern std::string peerIPInput;
+extern std::string peerIPOutput;
+
 struct sockaddr_any
 {
     union
