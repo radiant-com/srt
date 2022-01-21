@@ -53,6 +53,14 @@ if (NOT DEFINED CMAKE_INSTALL_LIBDIR)
 	include(GNUInstallDirs)
 endif()
 
+#For Socket.io
+set(BOOST_VER ${BOOST_VER} CACHE STRING "boost version" )
+set(BOOST_ROOT ${BOOST_ROOT} CACHE STRING "boost root" )
+set (SOCKET_IO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/socket.io-client-cpp)
+
+#include(${SOCKET_IO_DIR}/CMakeLists.txt)
+add_subdirectory(${SOCKET_IO_DIR})
+
 # The CMAKE_BUILD_TYPE seems not to be always set, weird.
 if (NOT DEFINED ENABLE_DEBUG)
 
@@ -1076,6 +1084,9 @@ macro(srt_add_program_dont_install name)
 	add_executable(${name} ${ARGN})
 	target_include_directories(${name} PRIVATE apps)
 	target_include_directories(${name} PRIVATE common)
+	if(${name} MATCHES "srt-live-transmit")
+		target_link_libraries("${name}" PRIVATE ${Boost_LIBRARIES})
+	endif()
 endmacro()
 
 macro(srt_add_program name)
@@ -1107,7 +1118,7 @@ macro(srt_make_application name)
 		set_target_properties(${name} PROPERTIES ${FORCE_RPATH})
 	endif()
 
-	target_link_libraries(${name} ${srt_link_library})
+	target_link_libraries(${name} ${srt_link_library} sioclient)
 	if (USE_GNUSTL)
 		target_link_libraries(${name} PRIVATE ${GNUSTL_LIBRARIES} ${GNUSTL_LDFLAGS})
 	endif()

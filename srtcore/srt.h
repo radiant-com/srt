@@ -419,6 +419,11 @@ struct CBytePerfMon
    int64_t  pktRecvUnique;              // number of packets to be received by the application
    uint64_t byteSentUnique;             // number of data bytes, sent by the application
    uint64_t byteRecvUnique;             // number of data bytes to be received by the application
+
+   std::string direction;
+   std::string peerIP;
+   int rcv_latency;
+   bool connected;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

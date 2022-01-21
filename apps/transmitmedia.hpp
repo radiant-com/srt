@@ -93,7 +93,7 @@ public:
         // Do nothing - create just to prepare for use
     }
 
-    int Read(size_t chunk, MediaPacket& pkt, ostream& out_stats = cout) override;
+    int Read(size_t chunk, MediaPacket& pkt, ostream& out_stats = cout, std::string csv_stats_file = "") override;
 
     /*
        In this form this isn't needed.
@@ -133,7 +133,7 @@ public:
     SrtTarget() {}
 
     int ConfigurePre(SRTSOCKET sock) override;
-    int Write(const char* data, size_t size, int64_t src_time, ostream &out_stats = cout) override;
+    int Write(const char* data, size_t size, int64_t src_time, ostream &out_stats = cout, std::string csv_stats_file = "") override;
     bool IsOpen() override { return IsUsable(); }
     bool Broken() override { return IsBroken(); }
 

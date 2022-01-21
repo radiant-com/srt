@@ -21,6 +21,9 @@
 #include "netinet_any.h"
 #include "utilities.h"
 
+extern bool srcConnected;
+extern bool tarConnected;
+
 #if _WIN32
 
 // Keep this below commented out.
@@ -347,6 +350,12 @@ enum SrtStatsPrintFormat
 
 SrtStatsPrintFormat ParsePrintFormat(std::string pf, std::string& w_extras);
 
+enum SrtDirection
+{
+    SRTDIRECTION_IN,
+    SRTDIRECTION_OUT
+};
+
 enum SrtStatCat
 {
     SSC_GEN, //< General
@@ -388,7 +397,7 @@ struct SrtStatDataType: public SrtStatData
 class SrtStatsWriter
 {
 public:
-    virtual std::string WriteStats(int sid, const CBytePerfMon& mon) = 0;
+    virtual std::string WriteStats(int sid, const CBytePerfMon& mon, SrtDirection direction) = 0;
     virtual std::string WriteBandwidth(double mbpsBandwidth) = 0;
     virtual ~SrtStatsWriter() { };
 

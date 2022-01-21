@@ -57,7 +57,7 @@ public:
             throw std::runtime_error(path + ": Can't open file for reading");
     }
 
-    int Read(size_t chunk, MediaPacket& pkt, ostream & ignored SRT_ATR_UNUSED = cout) override
+    int Read(size_t chunk, MediaPacket& pkt, ostream & ignored SRT_ATR_UNUSED = cout, std::string SRT_ATR_UNUSED = "") override
     {
         if (pkt.payload.size() < chunk)
             pkt.payload.resize(chunk);
@@ -87,7 +87,7 @@ public:
 
     FileTarget(const string& path): ofile(path, ios::out | ios::trunc | ios::binary) {}
 
-    int Write(const char* data, size_t size, int64_t time SRT_ATR_UNUSED, ostream & ignored SRT_ATR_UNUSED = cout) override
+    int Write(const char* data, size_t size, int64_t time SRT_ATR_UNUSED, ostream & ignored SRT_ATR_UNUSED = cout, std::string SRT_ATR_UNUSED = "") override
     {
         ofile.write(data, size);
         return !(ofile.bad()) ? (int) size : 0;
@@ -107,6 +107,9 @@ template <class Iface>
 Iface* CreateFile(const string& name) { return new typename File<Iface>::type (name); }
 
 shared_ptr<SrtStatsWriter> transmit_stats_writer;
+shared_ptr<SrtStatsWriter> stats_writer_csv;
+shared_ptr<sio::client> sio_client;
+std::string sio_room;
 
 void SrtCommon::InitParameters(string host, map<string,string> par)
 {
@@ -267,6 +270,11 @@ void SrtCommon::Init(string host, int port, map<string,string> par, bool dir_out
 
     Verb() << "Opening SRT " << (dir_output ? "target" : "source") << " " << m_mode
         << " on " << host << ":" << port;
+
+    if(dir_output)
+        peerIPOutput = " ";
+    else
+        peerIPInput = " ";
 
     if ( m_mode == "caller" )
         OpenClient(host, port);
@@ -506,7 +514,7 @@ SrtSource::SrtSource(string host, int port, const map<string,string>& par)
     hostport_copy = os.str();
 }
 
-int SrtSource::Read(size_t chunk, MediaPacket& pkt, ostream &out_stats)
+int SrtSource::Read(size_t chunk, MediaPacket& pkt, ostream &out_stats, std::string csv_stats_file)
 {
     static unsigned long counter = 1;
 
@@ -533,13 +541,40 @@ int SrtSource::Read(size_t chunk, MediaPacket& pkt, ostream &out_stats)
     if (need_bw_report || need_stats_report)
     {
         CBytePerfMon perf;
+        perf.direction = "in";
         srt_bstats(m_sock, &perf, need_stats_report && !transmit_total_stats);
         if (transmit_stats_writer != nullptr) 
         {
             if (need_bw_report)
                 cerr << transmit_stats_writer->WriteBandwidth(perf.mbpsBandwidth) << std::flush;
-            if (need_stats_report)
-                out_stats << transmit_stats_writer->WriteStats(m_sock, perf) << std::flush;
+            if (need_stats_report) {
+            	std::string stats = transmit_stats_writer->WriteStats(m_sock, perf, SRTDIRECTION_IN);
+            	out_stats << stats << endl << std::flush;
+            	if(sio_client->opened()) {
+            	    std::ostringstream statsData;
+                    statsData << "{";
+                    if(sio_room != "") {
+                        statsData << "\"room\":\"" << sio_room << "\",";
+                    }
+                    statsData << "\"payload\":" << stats;
+                    statsData << "}" << endl;
+                    //cout << statsData.str();
+                    sio_client->socket()->emit("stats", statsData.str());
+                }
+            }
+        }
+        if (need_stats_report && csv_stats_file != "" && stats_writer_csv != nullptr)
+        {
+        	std::ofstream csv_stats_stream;
+        	csv_stats_stream.open(csv_stats_file.c_str(), std::ofstream::out | std::ofstream::app);
+			if (!csv_stats_stream)
+			{
+				cerr << "ERROR: Can't open '" << csv_stats_file << "' for writing stats.\n";
+			} else {
+				std::string stats = stats_writer_csv->WriteStats(m_sock, perf, SRTDIRECTION_IN);
+				csv_stats_stream << stats << std::flush;
+			}
+			csv_stats_stream.close();
         }
     }
     ++counter;
@@ -564,7 +599,7 @@ int SrtTarget::ConfigurePre(SRTSOCKET sock)
     return 0;
 }
 
-int SrtTarget::Write(const char* data, size_t size, int64_t src_time, ostream &out_stats)
+int SrtTarget::Write(const char* data, size_t size, int64_t src_time, ostream &out_stats, std::string csv_stats_file)
 {
     static unsigned long counter = 1;
 
@@ -582,13 +617,40 @@ int SrtTarget::Write(const char* data, size_t size, int64_t src_time, ostream &o
     if (need_bw_report || need_stats_report)
     {
         CBytePerfMon perf;
+        perf.direction = "out";
         srt_bstats(m_sock, &perf, need_stats_report && !transmit_total_stats);
         if (transmit_stats_writer != nullptr)
         {
             if (need_bw_report)
                 cerr << transmit_stats_writer->WriteBandwidth(perf.mbpsBandwidth) << std::flush;
-            if (need_stats_report)
-                out_stats << transmit_stats_writer->WriteStats(m_sock, perf) << std::flush;
+            if (need_stats_report) {
+            	std::string stats = transmit_stats_writer->WriteStats(m_sock, perf, SRTDIRECTION_OUT);
+                out_stats << stats << endl << std::flush;
+            	if(sio_client->opened()) {
+            	    std::ostringstream statsData;
+                    statsData << "{";
+                    if(sio_room != "") {
+                        statsData << "\"room\":\"" << sio_room << "\",";
+                    }
+                    statsData << "\"payload\":" << stats;
+                    statsData << "}" << endl;
+                    //cout << statsData.str();
+                    sio_client->socket()->emit("stats", statsData.str());
+                }
+            }
+        }
+        if (need_stats_report && csv_stats_file != "" && stats_writer_csv != nullptr)
+        {
+			std::ofstream csv_stats_stream;
+			csv_stats_stream.open(csv_stats_file.c_str(), std::ofstream::out | std::ofstream::app);
+			if (!csv_stats_stream)
+			{
+				cerr << "ERROR: Can't open '" << csv_stats_file << "' for writing stats.\n";
+			} else {
+				std::string stats = stats_writer_csv->WriteStats(m_sock, perf, SRTDIRECTION_OUT);
+				csv_stats_stream << stats << std::flush;
+			}
+			csv_stats_stream.close();
         }
     }
     ++counter;
@@ -696,7 +758,7 @@ public:
 #endif
     }
 
-    int Read(size_t chunk, MediaPacket& pkt, ostream & ignored SRT_ATR_UNUSED = cout) override
+    int Read(size_t chunk, MediaPacket& pkt, ostream & ignored SRT_ATR_UNUSED = cout, std::string SRT_ATR_UNUSED = "") override
     {
         if (pkt.payload.size() < chunk)
             pkt.payload.resize(chunk);
@@ -740,7 +802,7 @@ public:
         cout.flush();
     }
 
-    int Write(const char* data, size_t len, int64_t src_time SRT_ATR_UNUSED, ostream & ignored SRT_ATR_UNUSED = cout) override
+    int Write(const char* data, size_t len, int64_t src_time SRT_ATR_UNUSED, ostream & ignored SRT_ATR_UNUSED = cout, std::string SRT_ATR_UNUSED = "") override
     {
         cout.write(data, len);
         return (int) len;
@@ -978,7 +1040,7 @@ public:
         eof = false;
     }
 
-    int Read(size_t chunk, MediaPacket& pkt, ostream & ignored SRT_ATR_UNUSED = cout) override
+    int Read(size_t chunk, MediaPacket& pkt, ostream & ignored SRT_ATR_UNUSED = cout, std::string SRT_ATR_UNUSED = "") override
     {
         if (pkt.payload.size() < chunk)
             pkt.payload.resize(chunk);
@@ -1038,7 +1100,7 @@ public:
 
     }
 
-    int Write(const char* data, size_t len, int64_t src_time SRT_ATR_UNUSED,  ostream & ignored SRT_ATR_UNUSED = cout) override
+    int Write(const char* data, size_t len, int64_t src_time SRT_ATR_UNUSED,  ostream & ignored SRT_ATR_UNUSED = cout, std::string SRT_ATR_UNUSED = "") override
     {
         int stat = sendto(m_sock, data, (int) len, 0, sadr.get(), sadr.size());
         if ( stat == -1 )

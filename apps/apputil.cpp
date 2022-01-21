@@ -377,8 +377,8 @@ struct SrtStatsTableInit
     {
         STATX(GEN, time, Time, msTimeStamp);
         STATX(GEN, timeStamp, Time, timeStamp);
-        //STAT(GEN, direction, "ToDo");
-        //STAT(GEN, peerIP, "ToDo");
+        STAT(GEN, direction, direction);
+        STAT(GEN, peerIP, peerIP);
 
         STAT(WINDOW, flow, pktFlowWindow);
         STAT(WINDOW, congestion, pktCongestionWindow);
@@ -387,8 +387,8 @@ struct SrtStatsTableInit
         STAT(LINK, rtt, msRTT);
         STAT(LINK, bandwidth, mbpsBandwidth);
         STAT(LINK, maxBandwidth, mbpsMaxBW);
-        //STAT(LINK, latency, rcv_latency);
-        //STAT(LINK, connected, connected);
+        STAT(LINK, latency, rcv_latency);
+        STAT(LINK, connected, connected);
 
         STAT(SEND, packets, pktSent);
         STAT(SEND, packetsUnique, pktSentUnique);
@@ -480,6 +480,9 @@ string SrtStatsWriter::print_timestamp()
 #endif // HAS_PUT_TIME
 
 
+bool srcConnected;
+bool tarConnected;
+
 class SrtStatsJson : public SrtStatsWriter
 {
     static string quotekey(const string& name)
@@ -499,7 +502,7 @@ class SrtStatsJson : public SrtStatsWriter
     }
 
 public: 
-    string WriteStats(int sid, const CBytePerfMon& mon) override
+    string WriteStats(int sid, const CBytePerfMon& mon, SrtDirection direction) override
     {
         std::ostringstream output;
 
@@ -588,7 +591,7 @@ private:
 public: 
     SrtStatsCsv() : first_line_printed(false) {}
 
-    string WriteStats(int sid, const CBytePerfMon& mon) override
+    string WriteStats(int sid, const CBytePerfMon& mon, SrtDirection direction) override
     {
         std::ostringstream output;
 
@@ -639,7 +642,7 @@ public:
 class SrtStatsCols : public SrtStatsWriter
 {
 public: 
-    string WriteStats(int sid, const CBytePerfMon& mon) override 
+    string WriteStats(int sid, const CBytePerfMon& mon, SrtDirection direction) override
     { 
         std::ostringstream output;
         output << "======= SRT STATS: sid=" << sid << endl;
