@@ -54,8 +54,6 @@ if (NOT DEFINED CMAKE_INSTALL_LIBDIR)
 endif()
 
 #For Socket.io
-set(BOOST_VER ${BOOST_VER} CACHE STRING "boost version" )
-set(BOOST_ROOT ${BOOST_ROOT} CACHE STRING "boost root" )
 set (SOCKET_IO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/socket.io-client-cpp)
 
 #include(${SOCKET_IO_DIR}/CMakeLists.txt)
@@ -1084,9 +1082,6 @@ macro(srt_add_program_dont_install name)
 	add_executable(${name} ${ARGN})
 	target_include_directories(${name} PRIVATE apps)
 	target_include_directories(${name} PRIVATE common)
-	if(${name} MATCHES "srt-live-transmit")
-		target_link_libraries("${name}" PRIVATE ${Boost_LIBRARIES})
-	endif()
 endmacro()
 
 macro(srt_add_program name)
