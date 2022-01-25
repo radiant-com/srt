@@ -361,13 +361,13 @@ string OptionHelpItem(const OptionName& o)
 
 template <class TYPE>
 inline SrtStatData* make_stat(SrtStatCat cat, const string& name, const string& longname,
-        TYPE CBytePerfMon::*field)
+        TYPE CBytePerfMon::*field, SrtStatCsvDirection cdir)
 {
-    return new SrtStatDataType<TYPE>(cat, name, longname, field);
+    return new SrtStatDataType<TYPE>(cat, name, longname, field, cdir);
 }
 
-#define STATX(catsuf, sname, lname, field) s.emplace_back(make_stat(SSC_##catsuf, #sname, #lname, &CBytePerfMon:: field))
-#define STAT(catsuf, sname, field) STATX(catsuf, sname, field, field)
+#define STATX(catsuf, sname, lname, field, cdir) s.emplace_back(make_stat(SSC_##catsuf, #sname, #lname, &CBytePerfMon:: field, CSVDIR_##cdir))
+#define STAT(catsuf, sname, field, cdir) STATX(catsuf, sname, field, field, cdir)
 
 vector<unique_ptr<SrtStatData>> g_SrtStatsTable;
 
@@ -375,65 +375,65 @@ struct SrtStatsTableInit
 {
     SrtStatsTableInit(vector<unique_ptr<SrtStatData>>& s)
     {
-        STATX(GEN, time, Time, msTimeStamp);
-        STATX(GEN, timeStamp, Time, timeStamp);
-        STAT(GEN, direction, direction);
-        STAT(GEN, peerIP, peerIP);
+        STATX(GEN, time, Time, msTimeStamp, NONE);
+        STATX(GEN, timeStamp, Time, timeStamp, BOTH);
+        STAT(GEN, direction, direction, NONE);
+        STAT(GEN, peerIP, peerIP, NONE);
 
-        STAT(WINDOW, flow, pktFlowWindow);
-        STAT(WINDOW, congestion, pktCongestionWindow);
-        STAT(WINDOW, flight, pktFlightSize);
+        STAT(WINDOW, flow, pktFlowWindow, NONE);
+        STAT(WINDOW, congestion, pktCongestionWindow, NONE);
+        STAT(WINDOW, flight, pktFlightSize, BOTH);
 
-        STAT(LINK, rtt, msRTT);
-        STAT(LINK, bandwidth, mbpsBandwidth);
-        STAT(LINK, maxBandwidth, mbpsMaxBW);
-        STAT(LINK, latency, rcv_latency);
-        STAT(LINK, connected, connected);
+        STAT(LINK, rtt, msRTT, IN);
+        STAT(LINK, bandwidth, mbpsBandwidth, OUT);
+        STAT(LINK, maxBandwidth, mbpsMaxBW, NONE);
+        STAT(LINK, latency, rcv_latency, IN);
+        STAT(LINK, connected, connected, NONE);
 
-        STAT(SEND, packets, pktSent);
-        STAT(SEND, packetsUnique, pktSentUnique);
-        STAT(SEND, packetsLost, pktSndLoss);
-        STAT(SEND, packetsDropped, pktSndDrop);
-        STAT(SEND, packetsRetransmitted, pktRetrans);
-        STAT(SEND, packetsFilterExtra, pktSndFilterExtra);
-        STAT(SEND, packetsTotal, pktSentTotal);
-        STAT(SEND, packetsLostTotal, pktSndLossTotal);
-        STAT(SEND, packetsDroppedTotal, pktSndDropTotal);
-        STAT(SEND, bytes, byteSent);
-        STAT(SEND, bytesUnique, byteSentUnique);
-        STAT(SEND, bytesDropped, byteSndDrop);
-        STAT(SEND, packetsRetransmittedTotal, pktRetransTotal);
-        STAT(SEND, byteAvailBuf, byteAvailSndBuf);
-        STAT(SEND, msBuf, msSndBuf);
-        STAT(SEND, mbitRate, mbpsSendRate);
-        STAT(SEND, sendPeriod, usPktSndPeriod);
+        STAT(SEND, packets, pktSent, OUT);
+        STAT(SEND, packetsUnique, pktSentUnique, NONE);
+        STAT(SEND, packetsLost, pktSndLoss, OUT);
+        STAT(SEND, packetsDropped, pktSndDrop, OUT);
+        STAT(SEND, packetsRetransmitted, pktRetrans, NONE);
+        STAT(SEND, packetsFilterExtra, pktSndFilterExtra, NONE);
+        STAT(SEND, packetsTotal, pktSentTotal, NONE);
+        STAT(SEND, packetsLostTotal, pktSndLossTotal, NONE);
+        STAT(SEND, packetsDroppedTotal, pktSndDropTotal, NONE);
+        STAT(SEND, bytes, byteSent, NONE);
+        STAT(SEND, bytesUnique, byteSentUnique, NONE);
+        STAT(SEND, bytesDropped, byteSndDrop, NONE);
+        STAT(SEND, packetsRetransmittedTotal, pktRetransTotal, NONE);
+        STAT(SEND, byteAvailBuf, byteAvailSndBuf, NONE);
+        STAT(SEND, msBuf, msSndBuf, NONE);
+        STAT(SEND, mbitRate, mbpsSendRate, OUT);
+        STAT(SEND, sendPeriod, usPktSndPeriod, NONE);
 
-        STAT(RECV, packets, pktRecv);
-        STAT(RECV, packetsUnique, pktRecvUnique);
-        STAT(RECV, packetsLost, pktRcvLoss);
-        STAT(RECV, packetsDropped, pktRcvDrop);
-        STAT(RECV, packetsRetransmitted, pktRcvRetrans);
-        STAT(RECV, packetsBelated, pktRcvBelated);
-        STAT(RECV, packetsUndecrypted, pktRcvUndecryptTotal);
-        STAT(RECV, packetsFilterExtra, pktRcvFilterExtra);
-        STAT(RECV, packetsFilterSupply, pktRcvFilterSupply);
-        STAT(RECV, packetsFilterLoss, pktRcvFilterLoss);
-        STAT(RECV, packetsTotal, pktRecvTotal);
-        STAT(RECV, packetsLostTotal, pktRcvLossTotal);
-        STAT(RECV, packetsDroppedTotal, pktRcvDropTotal);
-        STAT(RECV, bytes, byteRecv);
-        STAT(RECV, bytesUnique, byteRecvUnique);
-        STAT(RECV, bytesLost, byteRcvLoss);
-        STAT(RECV, bytesDropped, byteRcvDrop);
-        STAT(RECV, bytesUndecrypted, byteRcvUndecryptTotal);
-        STAT(RECV, bufferMs, msRcvBuf);
-        STAT(RECV, packetsRetransmittedTotal, pktRcvRetransTotal);
-        STAT(RECV, packetsBelatedTotal, pktRcvBelatedTotal);
-        STAT(RECV, packetsBelatedAverageTime, pktRcvAvgBelatedTime);
-        STAT(RECV, byteAvailBuf, byteAvailRcvBuf);
-        STAT(RECV, msBuf, msRcvBuf);
-        STAT(RECV, mbitRate, mbpsRecvRate);
-        STAT(RECV, msTsbPdDelay, msRcvTsbPdDelay);
+        STAT(RECV, packets, pktRecv, IN);
+        STAT(RECV, packetsUnique, pktRecvUnique, NONE);
+        STAT(RECV, packetsLost, pktRcvLoss, IN);
+        STAT(RECV, packetsDropped, pktRcvDrop, IN);
+        STAT(RECV, packetsRetransmitted, pktRcvRetrans, NONE);
+        STAT(RECV, packetsBelated, pktRcvBelated, NONE);
+        STAT(RECV, packetsUndecrypted, pktRcvUndecryptTotal, NONE);
+        STAT(RECV, packetsFilterExtra, pktRcvFilterExtra, NONE);
+        STAT(RECV, packetsFilterSupply, pktRcvFilterSupply, NONE);
+        STAT(RECV, packetsFilterLoss, pktRcvFilterLoss, NONE);
+        STAT(RECV, packetsTotal, pktRecvTotal, NONE);
+        STAT(RECV, packetsLostTotal, pktRcvLossTotal, NONE);
+        STAT(RECV, packetsDroppedTotal, pktRcvDropTotal, NONE);
+        STAT(RECV, bytes, byteRecv, NONE);
+        STAT(RECV, bytesUnique, byteRecvUnique, NONE);
+        STAT(RECV, bytesLost, byteRcvLoss, NONE);
+        STAT(RECV, bytesDropped, byteRcvDrop, NONE);
+        STAT(RECV, bytesUndecrypted, byteRcvUndecryptTotal, NONE);
+        STAT(RECV, bufferMs, msRcvBuf, IN);
+        STAT(RECV, packetsRetransmittedTotal, pktRcvRetransTotal, NONE);
+        STAT(RECV, packetsBelatedTotal, pktRcvBelatedTotal, NONE);
+        STAT(RECV, packetsBelatedAverageTime, pktRcvAvgBelatedTime, NONE);
+        STAT(RECV, byteAvailBuf, byteAvailRcvBuf, NONE);
+        STAT(RECV, msBuf, msRcvBuf, NONE);
+        STAT(RECV, mbitRate, mbpsRecvRate, NONE);
+        STAT(RECV, msTsbPdDelay, msRcvTsbPdDelay, NONE);
     }
 } g_SrtStatsTableInit (g_SrtStatsTable);
 
@@ -601,11 +601,13 @@ public:
 #ifdef HAS_PUT_TIME
             output << "Timepoint,";
 #endif
-            output << "Time,SocketID";
+            // output << "Time,SocketID";
 
             for (auto& i: g_SrtStatsTable)
             {
-                output << "," << i->longname;
+                if(i->csvdir == CSVDIR_BOTH || (direction == SRTDIRECTION_IN && i->csvdir == CSVDIR_IN) || (direction == SRTDIRECTION_OUT && i->csvdir == CSVDIR_OUT)) {
+                    output << "," << i->longname;
+                }
             }
             output << endl;
             first_line_printed = true;
@@ -618,13 +620,15 @@ public:
 #endif // HAS_PUT_TIME
 
         // HDR: Time,SocketID
-        output << mon.msTimeStamp << "," << sid;
+        // output << mon.msTimeStamp << "," << sid;
 
         // HDR: the loop of all values in g_SrtStatsTable
         for (auto& i: g_SrtStatsTable)
         {
-            output << ",";
-            i->PrintValue(output, mon);
+            if(i->csvdir == CSVDIR_BOTH || (direction == SRTDIRECTION_IN && i->csvdir == CSVDIR_IN) || (direction == SRTDIRECTION_OUT && i->csvdir == CSVDIR_OUT)) {
+                output << ",";
+                i->PrintValue(output, mon);
+            }
         }
 
         output << endl;

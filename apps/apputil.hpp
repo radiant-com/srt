@@ -368,13 +368,23 @@ enum SrtStatCat
     SSC_RECV //< Receiving
 };
 
+enum SrtStatCsvDirection
+{
+    CSVDIR_NONE, //< None, No output in CSV
+    CSVDIR_BOTH, //< Both, output in input CSV and output CSV
+    CSVDIR_IN, //< output in input CSV
+    CSVDIR_OUT //< output in output CSV
+};
+
 struct SrtStatData
 {
     SrtStatCat category;
     std::string name;
     std::string longname;
+    SrtStatCsvDirection csvdir;
 
     SrtStatData(SrtStatCat cat, std::string n, std::string l): category(cat), name(n), longname(l) {}
+    SrtStatData(SrtStatCat cat, std::string n, std::string l, SrtStatCsvDirection cdir): category(cat), name(n), longname(l), csvdir(cdir) {}
     virtual ~SrtStatData() {}
 
     virtual void PrintValue(std::ostream& str, const CBytePerfMon& mon) = 0;
@@ -388,6 +398,11 @@ struct SrtStatDataType: public SrtStatData
 
     SrtStatDataType(SrtStatCat cat, const std::string& name, const std::string& longname, pfield_t field)
         : SrtStatData (cat, name, longname), pfield(field)
+    {
+    }
+
+    SrtStatDataType(SrtStatCat cat, const std::string& name, const std::string& longname, pfield_t field, SrtStatCsvDirection cdir)
+        : SrtStatData (cat, name, longname, cdir), pfield(field)
     {
     }
 
