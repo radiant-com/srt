@@ -17,9 +17,12 @@
 #include <set>
 #include <vector>
 #include <memory>
+#include <typeinfo>
 
 #include "netinet_any.h"
 #include "utilities.h"
+
+using namespace std;
 
 extern bool srcConnected;
 extern bool tarConnected;
@@ -390,7 +393,11 @@ struct SrtStatDataType: public SrtStatData
 
     void PrintValue(std::ostream& str, const CBytePerfMon& mon) override
     {
-        str << mon.*pfield;
+        if (typeid(mon.*pfield) == typeid(std::string)) {
+            str << R"(")" << mon.*pfield << R"(")";
+        } else {
+            str << mon.*pfield;
+        }
     }
 };
 
