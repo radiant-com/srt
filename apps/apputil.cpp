@@ -599,7 +599,7 @@ public:
         if (!first_line_printed)
         {
 #ifdef HAS_PUT_TIME
-            output << "Timepoint,";
+            output << "Timepoint";
 #endif
             // output << "Time,SocketID";
 
@@ -616,7 +616,7 @@ public:
         // Values
 #ifdef HAS_PUT_TIME
         // HDR: Timepoint
-        output << print_timestamp() << ",";
+        output << print_timestamp();
 #endif // HAS_PUT_TIME
 
         // HDR: Time,SocketID
