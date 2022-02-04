@@ -542,6 +542,7 @@ int SrtSource::Read(size_t chunk, MediaPacket& pkt, ostream &out_stats, std::str
     {
         CBytePerfMon perf;
         perf.direction = "in";
+        perf.peerIP = peerIPInput;
         srt_bstats(m_sock, &perf, need_stats_report && !transmit_total_stats);
         if (transmit_stats_writer != nullptr) 
         {
@@ -618,6 +619,7 @@ int SrtTarget::Write(const char* data, size_t size, int64_t src_time, ostream &o
     {
         CBytePerfMon perf;
         perf.direction = "out";
+        perf.peerIP = peerIPOutput;
         srt_bstats(m_sock, &perf, need_stats_report && !transmit_total_stats);
         if (transmit_stats_writer != nullptr)
         {
