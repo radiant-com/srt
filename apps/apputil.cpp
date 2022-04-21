@@ -387,7 +387,7 @@ struct SrtStatsTableInit
         STAT(LINK, rtt, msRTT, IN);
         STAT(LINK, bandwidth, mbpsBandwidth, OUT);
         STAT(LINK, maxBandwidth, mbpsMaxBW, NONE);
-        STAT(LINK, latency, rcv_latency, IN);
+        STAT(LINK, latency, msRcvTsbPdDelay, IN);
         STAT(LINK, connected, connected, NONE);
 
         STAT(SEND, packets, pktSent, OUT);

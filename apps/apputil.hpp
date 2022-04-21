@@ -411,7 +411,12 @@ struct SrtStatDataType: public SrtStatData
         if (typeid(mon.*pfield) == typeid(std::string)) {
             str << R"(")" << mon.*pfield << R"(")";
         } else {
-            str << mon.*pfield;
+            if (name == "connected") {
+                bool connected = csvdir == SRTDIRECTION_IN ? srcConnected : tarConnected;
+                str << connected;
+            } else {
+                str << mon.*pfield;
+            }
         }
     }
 };
