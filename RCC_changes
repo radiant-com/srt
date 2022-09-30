@@ -1,0 +1,11 @@
+ following were the changes that we did for srt:
+1. Added following additional properties to JSON stats output:
+latency, connected, pktSentTotal, pktSndLossTotal, pktSndDropTotal, pktRetransTotal, pktRcvUndecryptTotal, pktRecvTotal, pktRcvLossTotal, pktRcvDropTotal, byteRcvUndecryptTotal, msRcvBuf, pktRcvRetransTotal, pktRcvBelatedTotal, pktRcvAvgBelatedTime
+2. Added PeerIP parameter to stats output
+3. Added Socket.io to retun stats update to clients through socket. Srt connnects to socket.io server as a client to a room id. Srt sends stats socket.io server. The server then broadcast the stats to other clients. Both socket.io server url and room id used in this process are passed as parameter to srt.
+4. Added option to write stats to specified files simultaneously to CSV and Text format.
+Also separated the stats oupput for input srt and output srt, using following options:
+-statsin	(Stats written to text file for input srt stats.)
+-statsout	(Stats written to text file for output srt stats.)
+-csvin		(Stats written to csv file for input srt stats.)
+-csvout		(Stats written to csv file for output srt stats.)
